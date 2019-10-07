@@ -36,6 +36,7 @@ import java.util.Queue;
 import org.tensorflow.lite.examples.detection.env.BorderedText;
 import org.tensorflow.lite.examples.detection.env.ImageUtils;
 import org.tensorflow.lite.examples.detection.env.Logger;
+import org.tensorflow.lite.examples.detection.tflite.Classifier;
 import org.tensorflow.lite.examples.detection.tflite.Classifier.Recognition;
 
 /** A tracker that handles non-max suppression and matches existing objects to new detections. */
@@ -117,7 +118,7 @@ public class MultiBoxTracker {
     }
   }
 
-  public synchronized void trackResults(final List<Recognition> results,final List<Pair<RectF,String>> faces
+  public synchronized void trackResults(final List<Recognition> results,final List<Classifier.faceNetOutput> faces
           , final long timestamp,int flag) {
     logger.i("Processing %d results from %d", results.size(), timestamp);
 
@@ -172,29 +173,30 @@ public class MultiBoxTracker {
       final RectF faceTrackedPos = new RectF(face.location);
 
       getFrameToCanvasMatrix().mapRect(faceTrackedPos);
-      boxPaint.setColor(COLORS[0]);
+      boxPaint.setColor(face.color);
 
       float cornerSize = Math.min(faceTrackedPos.width(), faceTrackedPos.height()) / 8.0f;
       canvas.drawRoundRect(faceTrackedPos, cornerSize, cornerSize, boxPaint);
 //      canvas.drawRect(facerackedPos,boxPaint);
+      final String labelString = String.format("%s %.2f",face.name,100*face.detectionConfidence);
       borderedText.drawText(
-              canvas, faceTrackedPos.left + cornerSize, faceTrackedPos.top,face.name, boxPaint);
+              canvas, faceTrackedPos.left + cornerSize, faceTrackedPos.top,labelString+"%", boxPaint);
     }
 
 
   }
 
-  private void processFaceResult(final List<Pair<RectF,String>> faces){
-    final List<Pair<RectF,String>> rectsFaceToTrack = new LinkedList<>();
+  private void processFaceResult(final List<Classifier.faceNetOutput> faces){
+    final List<Classifier.faceNetOutput> rectsFaceToTrack = new LinkedList<>();
 
     screenRects.clear();
     final Matrix rgbFrameToScreen = new Matrix(getFrameToCanvasMatrix());
 
 
-    for (final Pair<RectF,String> face : faces) {
+    for (final Classifier.faceNetOutput face : faces) {
       if (face == null)
         continue;
-      final RectF detectionFrameRect = new RectF(face.first);
+      final RectF detectionFrameRect = new RectF(face.getLocation());
 
       final RectF detectionScreenRect = new RectF();
       rgbFrameToScreen.mapRect(detectionScreenRect, detectionFrameRect);
@@ -205,7 +207,7 @@ public class MultiBoxTracker {
         continue;
       }
 
-        rectsFaceToTrack.add(new Pair<RectF, String>(detectionFrameRect,face.second));
+        rectsFaceToTrack.add(face);
     }
 
 
@@ -215,10 +217,12 @@ public class MultiBoxTracker {
     }
 
     trackedFaces.clear();
-    for (final Pair<RectF,String> potential : rectsFaceToTrack) {
+    for (final Classifier.faceNetOutput face  : rectsFaceToTrack) {
       final TrackedFace trackedRecognition = new TrackedFace();
-        trackedRecognition.name = potential.second;
-        trackedRecognition.location = potential.first;
+        trackedRecognition.name = face.getName();
+      trackedRecognition.detectionConfidence = face.getProba();
+        trackedRecognition.location = face.getLocation();
+        trackedRecognition.color = COLORS[trackedFaces.size()];
       trackedFaces.add(trackedRecognition);
     }
   }
@@ -230,21 +234,6 @@ public class MultiBoxTracker {
     screenRects.clear();
     final Matrix rgbFrameToScreen = new Matrix(getFrameToCanvasMatrix());
 
-
-//    for (final RectF face : faces) {
-//      final RectF detectionFrameRect = new RectF(face);
-//
-//      final RectF detectionScreenRect = new RectF();
-//      rgbFrameToScreen.mapRect(detectionScreenRect, detectionFrameRect);
-//
-//      screenRects.add(new Pair<Float, RectF>(0F, detectionScreenRect));
-//      if (detectionFrameRect.width() < MIN_SIZE || detectionFrameRect.height() < MIN_SIZE) {
-//        logger.w("Degenerate rectangle! " + detectionFrameRect);
-//        continue;
-//      }
-//
-//      rectsFaceToTrack.add(new RectF(detectionFrameRect));
-//    }
 
     for (final Recognition result : results) {
       if (result.getLocation() == null) {
@@ -273,14 +262,6 @@ public class MultiBoxTracker {
       return;
     }
 
-//    trackedFaces.clear();
-//    for (final RectF potential : rectsFaceToTrack) {
-//      final TrackedFace trackedRecognition = new TrackedFace();
-//      trackedRecognition.location = potential;
-//      trackedFaces.add(trackedRecognition);
-//
-//    }
-
     trackedObjects.clear();
     for (final Pair<Float, Recognition> potential : rectsToTrack) {
       final TrackedRecognition trackedRecognition = new TrackedRecognition();
@@ -304,6 +285,8 @@ public class MultiBoxTracker {
   }
   private static class TrackedFace {
       String name;
+      Float detectionConfidence;
+    int color;
     RectF location;
   }
 }

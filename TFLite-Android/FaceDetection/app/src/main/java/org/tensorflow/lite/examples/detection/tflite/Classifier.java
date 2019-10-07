@@ -22,7 +22,7 @@ import java.util.List;
 /** Generic interface for interacting with different recognition engines. */
 public interface Classifier {
   List<Recognition> recognizeImage(Bitmap bitmap);
-  faceNetOutput recognizeFace(Bitmap bitmap);
+  faceNetOutput recognizeFace(Bitmap bitmap,RectF location);
 
   void enableStatLogging(final boolean debug);
 
@@ -116,8 +116,6 @@ public interface Classifier {
       public Float getProba(){
       return proba;
     }
-      public void setLocation(RectF location) {
-        this.location = location;
-      }
+      public RectF getLocation() { return location; }
   }
 }

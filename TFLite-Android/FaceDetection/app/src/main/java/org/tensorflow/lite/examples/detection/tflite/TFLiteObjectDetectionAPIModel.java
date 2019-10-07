@@ -47,8 +47,7 @@ import org.tensorflow.lite.examples.detection.env.Logger;
 public class TFLiteObjectDetectionAPIModel implements Classifier {
   private static final Logger LOGGER = new Logger();
 
-  private static final int TF_OD_INPUT_FACE_DETECH_SIZE = 600;
-  private static final int TF_OD_API_INPUT_SIZE = 300;
+  private static final float TF_SCORE_FACE_RECOGNITION = 0.5F;
   private static final int OUTPUT_DIM_FACENET = 128;
   private static final int OUTPUT_DIM_SVM = 10;
   // Only return this many results.
@@ -192,7 +191,7 @@ public class TFLiteObjectDetectionAPIModel implements Classifier {
     return d;
   }
   @Override
-  public faceNetOutput recognizeFace(final Bitmap bitmap) {
+  public faceNetOutput recognizeFace(final Bitmap bitmap,final RectF location) {
     Trace.beginSection("recognizeFace");
     Trace.beginSection("preprocessBitmap");
     // Preprocess the image data from 0-255 int to normalized float based
@@ -252,8 +251,11 @@ public class TFLiteObjectDetectionAPIModel implements Classifier {
         proba = outputSvmModel[0][i];
         argmax = i;
       }
-    String name = label_names.get(argmax);
-    final faceNetOutput recognition = new faceNetOutput(name,proba,new RectF());
+
+    String name = "?";
+      if (proba > TF_SCORE_FACE_RECOGNITION)
+        name = label_names.elementAt(argmax);
+    final faceNetOutput recognition = new faceNetOutput(name,proba,location);
 
     Trace.endSection();
     return recognition;

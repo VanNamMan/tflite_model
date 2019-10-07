@@ -216,7 +216,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 
             final List<Classifier.Recognition> results;
             final SparseArray<Face> faces;
-            final List<Pair<RectF,String>> mappedFaces = new LinkedList<>();
+//            final List<Pair<RectF,String>> mappedFaces = new LinkedList<>();
             final List<Classifier.faceNetOutput> listFaceRecognitions = new LinkedList<Classifier.faceNetOutput>();
             final List<Classifier.Recognition> mappedRecognitions = new LinkedList<Classifier.Recognition>();
 
@@ -260,7 +260,6 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
             else if (iType==TYPE_FACE){
               Frame frame = new Frame.Builder().setBitmap(croppedBitmap).build();
               faces = face_detector.detect(frame);
-              lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime;
 
               for(int i=0; i<faces.size(); i++) {
                 Face thisFace = faces.valueAt(i);
@@ -272,7 +271,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
                 RectF location = new RectF(x1,y1,x2,y2);
 
                 final Bitmap croppred = ImageUtils.cropFromBitmap(croppedBitmap,location,TF_OD_API_INPUT_FACE_NET_SIZE);
-                final Classifier.faceNetOutput face_result = detector.recognizeFace(croppred);
+                final Classifier.faceNetOutput face_result = detector.recognizeFace(croppred,location);
                 listFaceRecognitions.add(face_result);
 
                 if (SAVE_PREVIEW_BITMAP) {
@@ -282,13 +281,15 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
                 cropToFrameTransform.mapRect(location);
                 canvas.drawRect(location, paint);
 
-                mappedFaces.add(new Pair<RectF, String>(location,face_result.getName()));
+//                mappedFaces.add(new Pair<RectF, String>(location,face_result.getName()));
               }
+
+              lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime;
             }
 
             tracker.trackedFaces.clear();
             tracker.trackedObjects.clear();
-            tracker.trackResults(mappedRecognitions,mappedFaces, currTimestamp,iType);
+            tracker.trackResults(mappedRecognitions,listFaceRecognitions, currTimestamp,iType);
             trackingOverlay.postInvalidate();
 
             computingDetection = false;
@@ -298,10 +299,10 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
                   @Override
                   public void run() {
 //                      float w = mappedFaces.get(0).right - mappedFaces.get(0).left;
-                      if (mappedFaces.size() > 0) {
-                          final RectF r = mappedFaces.get(0).first;
-                          final String name = mappedFaces.get(0).second;
-                          showFaceInfo(String.format("Face-0: " + name +"[%.2f,%.2f,%.2f,%.2f]",r.left,r.top,r.right-r.left,r.bottom-r.top));
+                      if (listFaceRecognitions.size() > 0) {
+                          final float score = listFaceRecognitions.get(0).getProba();
+                          final String name = listFaceRecognitions.get(0).getName();
+                          showFaceInfo("0,"+name+",Score : "+score);
 //                          showFaceInfo("Face 0 : " +faceOutput.getName()+","+faceOutput.getProba());
                       }
                       showFrameInfo(previewWidth + "x" + previewHeight);
