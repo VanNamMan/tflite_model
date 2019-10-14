@@ -17,8 +17,10 @@ package org.tensorflow.lite.examples.detection.env;
 
 import android.graphics.Bitmap;
 import android.graphics.Matrix;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.os.Environment;
+import androidx.core.util.Pair;
 
 import org.tensorflow.lite.examples.detection.tflite.Classifier;
 
@@ -37,22 +39,44 @@ public class ImageUtils {
    * Utility method to compute the allocated size in bytes of a YUV420SP image of the given
    * dimensions.
    */
-  public static Bitmap cropFromBitmap(Bitmap bmp , RectF rect,int image_size){
+  public static Pair<Bitmap, RectF> cropFromBitmap2(Bitmap bmp , RectF rect, int offset, int image_size){
 
     RectF r = new RectF(rect);
     int width = bmp.getWidth();
     int height = bmp.getHeight();
 
-    int offset = 0;
+//    int offset = 0;
 
     int x = (int)r.left+offset;
-    int y = (int)r.top+offset;
-    int w =  Math.min((int)r.right-x+2*offset,width-x);
-    int h = Math.min((int)r.bottom-y+2*offset,height-y);
+    int y = (int)r.top;
+    int w =  Math.min((int)r.right-x,width-x);
+    int h = Math.min((int)r.bottom-y-offset,height-y);
+
+    RectF newRect = new RectF(x,y,x+w,y+h);
+    Bitmap cropped = Bitmap.createBitmap(bmp,x,y,w,h);
+
+    if (image_size > 0)
+      cropped = Bitmap.createScaledBitmap(cropped,image_size,image_size,true);
+
+    return new Pair<Bitmap,RectF>(cropped,newRect);
+  }
+  public static Bitmap cropFromBitmap(Bitmap bmp , RectF rect,int offset,int image_size){
+
+    RectF r = new RectF(rect);
+    int width = bmp.getWidth();
+    int height = bmp.getHeight();
+
+//    int offset = 0;
+
+    int x = (int)r.left+offset;
+    int y = (int)r.top;
+    int w =  Math.min((int)r.right-x,width-x);
+    int h = Math.min((int)r.bottom-y-offset,height-y);
 
     Bitmap cropped = Bitmap.createBitmap(bmp,x,y,w,h);
 
-    cropped = Bitmap.createScaledBitmap(cropped,image_size,image_size,true);
+    if (image_size > 0)
+      cropped = Bitmap.createScaledBitmap(cropped,image_size,image_size,true);
 
     return cropped;
   }
@@ -73,7 +97,7 @@ public class ImageUtils {
    * @param bitmap The bitmap to save.
    */
   public static void saveBitmap(final Bitmap bitmap) {
-    saveBitmap(bitmap, "preview.png");
+    saveBitmap(bitmap,"", "preview.png");
   }
 
   /**
@@ -82,16 +106,17 @@ public class ImageUtils {
    * @param bitmap The bitmap to save.
    * @param filename The location to save the bitmap to.
    */
-  public static void saveBitmap(final Bitmap bitmap, final String filename) {
+  public static void saveBitmap(final Bitmap bitmap,final String subFolder, final String filename) {
     final String root =
-        Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "tensorflow";
+        Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "tensorflow/"+subFolder;
     LOGGER.i("Saving %dx%d bitmap to %s.", bitmap.getWidth(), bitmap.getHeight(), root);
     final File myDir = new File(root);
 
-    if (!myDir.mkdirs()) {
-      LOGGER.i("Make dir failed");
+    if (!myDir.exists()){
+      if (!myDir.mkdirs()) {
+        LOGGER.i("Make dir failed");
+      }
     }
-
     final String fname = filename;
     final File file = new File(myDir, fname);
     if (file.exists()) {

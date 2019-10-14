@@ -48,6 +48,7 @@ import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
@@ -60,6 +61,7 @@ import java.util.List;
 
 import org.tensorflow.lite.examples.detection.env.ImageUtils;
 import org.tensorflow.lite.examples.detection.env.Logger;
+import org.tensorflow.lite.examples.detection.tflite.Classifier;
 
 public abstract class CameraActivity extends AppCompatActivity
     implements OnImageAvailableListener,
@@ -72,6 +74,8 @@ public abstract class CameraActivity extends AppCompatActivity
 
   protected int TYPE_OBJECT = 0;
   protected int TYPE_FACE = 1;
+  protected int TYPE_SAVE_CROP = 2;
+  protected static final int TF_OD_API_MIN_SIZE_SAVE_CROP = 150;
   protected static final int TF_OD_API_INPUT_FACE_DETECH_SIZE = 500;
   protected static final int TF_OD_API_INPUT_OBJ_DETECH_SIZE = 300;
 
@@ -100,6 +104,7 @@ public abstract class CameraActivity extends AppCompatActivity
   private SwitchCompat apiSwitchCompat;
   private TextView threadsTextView;
 
+  protected EditText edtLabelCrop;
   private RadioGroup radioGroup;
   private RadioButton radioButtonObject,radioButtonFace;
   private int typeDetect = -1;
@@ -127,6 +132,7 @@ public abstract class CameraActivity extends AppCompatActivity
     sheetBehavior = BottomSheetBehavior.from(bottomSheetLayout);
     bottomSheetArrowImageView = findViewById(R.id.bottom_sheet_arrow);
 
+    edtLabelCrop = findViewById(R.id.editLabelCrop);
     radioGroup= (RadioGroup)findViewById(R.id.radio_group);
     radioButtonFace = (RadioButton)findViewById(R.id.radio_face);
     radioButtonObject  =  (RadioButton)findViewById(R.id.radio_object);
@@ -215,16 +221,19 @@ public abstract class CameraActivity extends AppCompatActivity
     return typeDetect;
   }
   protected  void setTypeDetect(RadioGroup group,int idCheck){
-    if(idCheck == R.id.radio_face){
-      typeDetect = TYPE_FACE;
-      onPreviewSizeChosen(new Size(previewWidth,previewHeight),90,TF_OD_API_INPUT_OBJ_DETECH_SIZE);
 
-//      isDoneSwitchType = true;
+    if(idCheck == R.id.radio_face){
+
+      onPreviewSizeChosen(new Size(previewWidth,previewHeight),90,TF_OD_API_INPUT_FACE_DETECH_SIZE);
+      typeDetect = TYPE_FACE;
     }
-    else{
-      typeDetect = TYPE_OBJECT;
+    else if (idCheck == R.id.radio_object){
       onPreviewSizeChosen(new Size(previewWidth,previewHeight),90,TF_OD_API_INPUT_OBJ_DETECH_SIZE);
-//      isDoneSwitchType = true;
+      typeDetect = TYPE_OBJECT;
+    }
+    else if (idCheck == R.id.radio_save_crop){
+      onPreviewSizeChosen(new Size(previewWidth,previewHeight),90,TF_OD_API_INPUT_FACE_DETECH_SIZE);
+      typeDetect = TYPE_SAVE_CROP;
     }
   }
   protected int[] getRgbBytes() {
@@ -495,7 +504,7 @@ public abstract class CameraActivity extends AppCompatActivity
                 public void onPreviewSizeChosen(final Size size, final int rotation) {
                   previewHeight = size.getHeight();
                   previewWidth = size.getWidth();
-                  CameraActivity.this.onPreviewSizeChosen(size,rotation,TF_OD_API_INPUT_OBJ_DETECH_SIZE);
+                  CameraActivity.this.onPreviewSizeChosen(size,rotation,320);
                 }
               },
               this,
@@ -593,6 +602,7 @@ public abstract class CameraActivity extends AppCompatActivity
     inferenceTimeTextView.setText(inferenceTime);
   }
 
+  protected abstract Classifier getDetector();
   protected abstract void processImage();
 
   protected abstract void onPreviewSizeChosen(final Size size, final int rotation , final int inputSize);

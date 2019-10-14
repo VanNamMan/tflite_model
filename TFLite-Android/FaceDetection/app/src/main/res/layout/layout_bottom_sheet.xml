@@ -182,13 +182,13 @@
         android:background="@android:color/darker_gray" />
 
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentRight="true"
         android:orientation="horizontal"
         android:padding="4dp">
         <RadioGroup
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:id="@+id/radio_group">
@@ -196,13 +196,22 @@
             <RadioButton
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Object Detection"
+                android:text="Object"
                 android:id="@+id/radio_object"/>
             <RadioButton
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Face Detection"
+                android:text="Face"
                 android:id="@+id/radio_face"/>
+            <RadioButton
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Crop"
+                android:id="@+id/radio_save_crop"/>
+            <EditText
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/editLabelCrop"/>
 
         </RadioGroup>
 

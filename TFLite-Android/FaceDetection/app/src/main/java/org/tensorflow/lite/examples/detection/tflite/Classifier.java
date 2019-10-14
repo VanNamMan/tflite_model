@@ -21,8 +21,9 @@ import java.util.List;
 
 /** Generic interface for interacting with different recognition engines. */
 public interface Classifier {
+  void getOutputSsdV2(Bitmap bitmap);
   List<Recognition> recognizeImage(Bitmap bitmap);
-  faceNetOutput recognizeFace(Bitmap bitmap,RectF location);
+  faceNetOutput recognizeFace(Bitmap bitmap,RectF location,int offset,int image_size);
 
   void enableStatLogging(final boolean debug);
 

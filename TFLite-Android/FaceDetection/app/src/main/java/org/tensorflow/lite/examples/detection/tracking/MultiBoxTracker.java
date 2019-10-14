@@ -43,6 +43,7 @@ import org.tensorflow.lite.examples.detection.tflite.Classifier.Recognition;
 public class MultiBoxTracker {
   private static final int TYPE_OBJECT = 0;
   private static final int TYPE_FACE = 1;
+  private static final int TYPE_SAVE_CROP = 2;
   private static final float TEXT_SIZE_DIP = 18;
   private static final float MIN_SIZE = 16.0f;
   private static final int[] COLORS = {
@@ -124,7 +125,7 @@ public class MultiBoxTracker {
 
     if(flag == TYPE_OBJECT)
       processResults(results);
-    else if (flag == TYPE_FACE)
+    else if (flag == TYPE_FACE || flag == TYPE_SAVE_CROP)
       processFaceResult(faces);
   }
 

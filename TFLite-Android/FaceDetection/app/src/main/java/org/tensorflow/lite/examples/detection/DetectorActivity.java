@@ -29,22 +29,25 @@ import android.graphics.Typeface;
 
 import android.media.ImageReader.OnImageAvailableListener;
 import android.os.SystemClock;
-import android.os.Trace;
-import android.util.Pair;
 import android.util.Size;
 import android.util.SparseArray;
 import android.util.TypedValue;
 import android.widget.Toast;
+
+import androidx.core.util.Pair;
 
 import com.google.android.gms.vision.Frame;
 import com.google.android.gms.vision.face.Face;
 import com.google.android.gms.vision.face.FaceDetector;
 
 import java.io.IOException;
-import java.util.HashMap;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 import org.tensorflow.lite.examples.detection.customview.OverlayView;
 import org.tensorflow.lite.examples.detection.customview.OverlayView.DrawCallback;
@@ -68,10 +71,16 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 //  private static final int TF_OD_API_INPUT_OBJ_DETECH_SIZE = 300;
   private static final int TF_OD_API_INPUT_FACE_NET_SIZE = 160;
   private static final boolean TF_OD_API_IS_QUANTIZED = true;
-  private static final String TF_OD_API_MODEL_FILE = "detect.tflite";
+
+  private static final String TF_OD_API_MODEL_FILE = "mobile_ssd_v2_float_coco.tflite";
+
+//  private static final String TF_OD_API_MODEL_FILE = "detect.tflite";
+  private static final String TF_OD_API_LABELS_FILE = "file:///android_asset/labelmap.txt";
+  private static final String TF_OD_API_ANCHOR_BOX_SSD_V2 = "file:///android_asset/mobile_ssd_v2_anchor.csv";
+
   private static final String TF_OD_API_MODEL_FACE_NET_FILE = "face_net.tflite";
   private static final String TF_OD_API_MODEL_SVM_FILE = "svm.tflite";
-  private static final String TF_OD_API_LABELS_FILE = "file:///android_asset/labelmap.txt";
+
   private static final String TF_OD_API_NAMES_FILE = "file:///android_asset/names.txt";
   private static final DetectorMode MODE = DetectorMode.TF_OD_API;
   // Minimum detection confidence to track a detection.
@@ -106,7 +115,6 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 
   private BorderedText borderedText;
 
-
   @Override
   public void onPreviewSizeChosen(final Size size,final int rotation,final int inputSize) {
     final float textSizePx =
@@ -127,6 +135,10 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
       return;
     }
 
+    if (detector != null){
+      detector.close();
+      detector = null;
+    }
     try {
       detector =
           TFLiteObjectDetectionAPIModel.create(
@@ -238,9 +250,11 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
             final long startTime = SystemClock.uptimeMillis();
             final int iType = getTypeDetect();
 
+            detector.getOutputSsdV2(croppedBitmap);
+
             if (iType==TYPE_OBJECT){
                 if(croppedBitmap.getWidth() != TF_OD_API_INPUT_OBJ_DETECH_SIZE)
-                    return ;
+                     return;
               results = detector.recognizeImage(croppedBitmap);
               lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime;
 
@@ -257,7 +271,7 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
               }
             }
             //
-            else if (iType==TYPE_FACE){
+            else{
               Frame frame = new Frame.Builder().setBitmap(croppedBitmap).build();
               faces = face_detector.detect(frame);
 
@@ -270,18 +284,34 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 
                 RectF location = new RectF(x1,y1,x2,y2);
 
-                final Bitmap croppred = ImageUtils.cropFromBitmap(croppedBitmap,location,TF_OD_API_INPUT_FACE_NET_SIZE);
-                final Classifier.faceNetOutput face_result = detector.recognizeFace(croppred,location);
-                listFaceRecognitions.add(face_result);
+//                final Bitmap croppred = ImageUtils.cropFromBitmap(croppedBitmap,location,TF_OD_API_INPUT_FACE_NET_SIZE);
+                if (iType==TYPE_FACE){
+                  final Classifier.faceNetOutput face_result = detector.recognizeFace(croppedBitmap,location,10,TF_OD_API_INPUT_FACE_NET_SIZE);
+                  listFaceRecognitions.add(face_result);
 
-                if (SAVE_PREVIEW_BITMAP) {
-                  ImageUtils.saveBitmap(croppred,String.format("Face_%d.png",i));
+                  cropToFrameTransform.mapRect(face_result.getLocation());
+                  canvas.drawRect(face_result.getLocation(), paint);
                 }
+                if (iType == TYPE_SAVE_CROP){
+                    Pair crop = ImageUtils.cropFromBitmap2(croppedBitmap,location,10,-1);
+                    Bitmap croppred = (Bitmap) crop.first;
+                    RectF newRect = (RectF) crop.second;
 
-                cropToFrameTransform.mapRect(location);
-                canvas.drawRect(location, paint);
+                    if (croppred.getWidth() > TF_OD_API_MIN_SIZE_SAVE_CROP) {
+                        String label = edtLabelCrop.getText().toString();
+                        if (label == "")
+                          label = "Unnamed";
+                        Date date = Calendar.getInstance().getTime();
+                        DateFormat dateFormat = new SimpleDateFormat("yyyyMMdd_hhmmss");
+                        ImageUtils.saveBitmap(croppred, label
+                                , String.format("Face_%s.png",dateFormat.format(date)));
+                    }
+                  final Classifier.faceNetOutput face_result = new Classifier.faceNetOutput("?",0F,newRect);
+                  listFaceRecognitions.add(face_result);
 
-//                mappedFaces.add(new Pair<RectF, String>(location,face_result.getName()));
+                  cropToFrameTransform.mapRect(newRect);
+                  canvas.drawRect(newRect, paint);
+                }
               }
 
               lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime;
@@ -314,6 +344,10 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
         });
   }
 
+  @Override
+  protected Classifier getDetector(){
+    return this.detector;
+  }
   @Override
   protected int getLayoutId() {
     return R.layout.camera_connection_fragment_tracking;
